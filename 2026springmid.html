@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시나리오 분석 및 연출 추천기</title>
+    <style>
+        :root {
+            --primary-color: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg-color: #F9FAFB;
+            --card-bg: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border-color: #E5E7EB;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #F3F4F6;
+            border-radius: 8px;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        input[type="range"] {
+            width: 150px;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Results Section */
+        #resultSection {
+            display: none;
+            margin-top: 30px;
+            border-top: 2px dashed var(--border-color);
+            padding-top: 30px;
+        }
+
+        .analysis-panel {
+            background-color: #EEF2FF;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .analysis-panel h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .storyboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .cut-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .cut-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .cut-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .cut-detail {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .cut-detail span {
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎬 시나리오 분석 및 연출 추천 보드</h1>
+        
+        <div class="input-group">
+            <label for="scenarioInput">시나리오 텍스트 입력</label>
+            <textarea id="scenarioInput" placeholder="여기에 시나리오를 붙여넣으세요. (예: S#1. 낡은 창고 안 - 밤)"></textarea>
+        </div>
+
+        <div class="controls">
+            <div class="slider-group">
+                <label for="cutSlider">컷 수 설정:</label>
+                <input type="range" id="cutSlider" min="1" max="10" value="4">
+                <span id="cutValue" style="font-weight: bold; font-size: 18px; color: var(--primary-color);">4컷</span>
+            </div>
+            <button onclick="analyzeScenario()">분석 및 연출 생성</button>
+        </div>
+
+        <div id="resultSection">
+            <div class="analysis-panel">
+                <h3>📋 씬 분석 결과</h3>
+                <div class="analysis-grid">
+                    <div id="resScene"><strong>씬 번호:</strong> <span>-</span></div>
+                    <div id="resLocTime"><strong>장소/시간:</strong> <span>-</span></div>
+                    <div id="resChars" style="grid-column: span 2;"><strong>등장인물:</strong> <span>-</span></div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 15px;">🎞️ 연출 콘티 보드</h3>
+            <div id="storyboard" class="storyboard-grid">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // 슬라이더 값 변경 시 텍스트 업데이트
+        const slider = document.getElementById('cutSlider');
+        const cutValueText = document.getElementById('cutValue');
+
+        slider.addEventListener('input', function() {
+            cutValueText.textContent = this.value + '컷';
+            // 결과 창이 열려있다면 슬라이더 조절 시 실시간으로 컷 수 업데이트
+            if (document.getElementById('resultSection').style.display === 'block') {
+                generateStoryboard();
+            }
+        });
+
+        // 텍스트 분석 로직
+        function analyzeText(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let sNumber = "알 수 없음";
+            let timeLoc = "알 수 없음";
+            let characters = new Set();
+
+            if (lines.length > 0) {
+                const firstLine = lines[0];
+                // S# 추출
+                const sMatch = firstLine.match(/(S#\d+)/i);
+                if (sMatch) sNumber = sMatch[1];
+
+                // 장소/시간 추출 (S# 제외한 나머지 부분)
+                timeLoc = firstLine.replace(/(S#\d+)/i, '').replace(/^[-\s]+/, '').trim();
+                if (!timeLoc) timeLoc = "알 수 없음 (첫 줄에 명시되지 않음)";
+            }
+
+            // 등장인물 추출 (간단한 휴리스틱: 대사 앞의 이름이나 짧은 단독 줄)
+            const stopWords = ['소리', '카메라', '음악', '효과음', '자막', '그때', '그리고', '하지만', '왜냐하면', '여기', '저기', '모두', '네', '아니오'];
+            
+            lines.forEach(line => {
+                // 1. '이름:' 형태 (괄호 지문 제외)
+                const colonMatch = line.match(/^([가-힣a-zA-Z0-9]+)\s*(?=:)/);
+                if (colonMatch) characters.add(colonMatch[1]);
+
+                // 2. 단독으로 쓰인 2~4글자의 이름 (대사 바로 위)
+                if (line.length >= 2 && line.length <= 5 && !line.includes(' ') && !line.includes('.') && !line.match(/[#()]/)) {
+                    characters.add(line);
+                }
+            });
+
+            const filteredChars = Array.from(characters).filter(c => !stopWords.includes(c));
+
+            return {
+                sNumber: sNumber,
+                timeLoc: timeLoc,
+                characters: filteredChars.length > 0 ? filteredChars.join(', ') : "명확히 감지되지 않음"
+            };
+        }
+
+        // 연출 랜덤 생성 데이터 풀
+        const shotSizes = ['F.S (풀 샷)', 'M.S (미디엄 샷)', 'B.S (바스트 샷)', 'C.U (클로즈업)', 'E.C.U (익스트림 클로즈업)', 'O.S.S (오버 더 숄더 샷)'];
+        const cameraMoves = ['Fix (고정)', 'Pan (좌우 회전)', 'Tilt up/down (상하 회전)', 'Dolly In (다가감)', 'Dolly Out (멀어짐)', 'Handheld (들고 찍기)'];
+        const intents = [
+            '공간의 전체적인 분위기를 설정하고 인물의 위치를 보여줍니다.',
+            '인물의 감정선에 집중하여 긴장감을 유발합니다.',
+            '대화의 흐름을 자연스럽게 따라가며 인물 간의 관계를 보여줍니다.',
+            '특정 소품이나 행동을 강조하여 복선을 제시합니다.',
+            '화면의 흔들림을 통해 인물의 불안한 심리를 대변합니다.',
+            '관찰자 시점으로 거리를 두어 객관적인 상황을 묘사합니다.'
+        ];
+
+        // 컷 카드 생성 로직
+        function generateStoryboard() {
+            const numCuts = parseInt(slider.value);
+            const storyboard = document.getElementById('storyboard');
+            storyboard.innerHTML = ''; // 초기화
+
+            for (let i = 1; i <= numCuts; i++) {
+                let shot = shotSizes[Math.floor(Math.random() * shotSizes.length)];
+                let move = cameraMoves[Math.floor(Math.random() * cameraMoves.length)];
+                let duration = Math.floor(Math.random() * 8) + 2; // 2초 ~ 9초
+                let intent = intents[Math.floor(Math.random() * intents.length)];
+
+                // 첫 컷은 보통 F.S 고정 추천
+                if (i === 1) {
+                    shot = 'F.S (풀 샷)';
+                    move = 'Fix (고정)';
+                    intent = '씬의 공간적 배경과 인물의 초기 위치를 관객에게 인식시킵니다. (설정 샷)';
+                }
+
+                const card = document.createElement('div');
+                card.className = 'cut-card';
+                card.innerHTML = `
+                    <div class="cut-header">Cut ${i}</div>
+                    <div class="cut-detail"><span>샷 크기:</span> ${shot}</div>
+                    <div class="cut-detail"><span>카메라 무빙:</span> ${move}</div>
+                    <div class="cut-detail"><span>지속 시간:</span> 약 ${duration}초</div>
+                    <hr style="border: 0; border-top: 1px dashed #E5E7EB; margin: 10px 0;">
+                    <div class="cut-detail"><span>연출 의도:</span> <br>${intent}</div>
+                `;
+                storyboard.appendChild(card);
+            }
+        }
+
+        // 메인 실행 함수
+        function analyzeScenario() {
+            const text = document.getElementById('scenarioInput').value;
+            
+            if (!text.trim()) {
+                alert("시나리오 텍스트를 입력해주세요!");
+                return;
+            }
+
+            // 분석 실행
+            const analysis = analyzeText(text);
+            
+            // UI 업데이트
+            document.querySelector('#resScene span').textContent = analysis.sNumber;
+            document.querySelector('#resLocTime span').textContent = analysis.timeLoc;
+            document.querySelector('#resChars span').textContent = analysis.characters;
+
+            // 콘티 보드 생성
+            generateStoryboard();
+
+            // 결과 영역 표시
+            document.getElementById('resultSection').style.display = 'block';
+            
+            // 결과 영역으로 스크롤 부드럽게 이동
+            document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
