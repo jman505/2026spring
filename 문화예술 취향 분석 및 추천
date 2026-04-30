@@ -3,301 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>문화예술 취향 분석 및 추천</title>
+    <title>문화예술 유니버스 - 5대 분야 통합 추천</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {
-            --primary-color: #4a90e2;
-            --bg-color: #f5f7fa;
-            --text-color: #333;
-            --card-bg: #ffffff;
+            --primary-color: #5d5bf0;
+            --accent-color: #ff3e81;
+            --bg-color: #0b0e14;
+            --card-bg: #1a1f26;
+            --text-color: #e0e0e0;
+            --border-color: #2d343d;
         }
         body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+            font-family: 'Pretendard', -apple-system, system-ui, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
+            margin: 0; padding: 20px;
+            overflow-x: hidden;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        h1, h2 {
-            text-align: center;
-            color: #2c3e50;
-        }
-        .card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-        .form-group {
-            margin-bottom: 16px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-        input[type="text"], select, textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-family: inherit;
-        }
-        textarea {
-            resize: vertical;
-            height: 100px;
-        }
-        .rating {
-            display: flex;
-            gap: 15px;
-        }
-        .rating label {
-            font-weight: normal;
-            cursor: pointer;
-        }
-        button {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #357abd;
-        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { text-align: center; color: #fff; font-weight: 800; letter-spacing: -1px; margin-bottom: 40px; }
+        
+        /* 추천 영역 레이아웃 (그리드) */
         #recommendation-box {
-            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-            color: #fff;
+            background: linear-gradient(145deg, #1e1e2f 0%, #111119 100%);
+            border-radius: 20px; padding: 30px; margin-bottom: 30px;
+            border: 1px solid var(--primary-color);
             display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        #recommendation-box h2 {
-            color: #fff;
-            margin-top: 0;
+        #recommendation-box h2 { color: var(--accent-color); margin-top: 0; text-align: center; font-size: 1.5rem; }
+        .rec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px; margin-top: 25px;
         }
-        .log-list {
-            list-style: none;
-            padding: 0;
+        .rec-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px; border-radius: 12px;
+            border-top: 3px solid var(--primary-color);
+            transition: 0.3s;
         }
-        .log-item {
-            background: var(--card-bg);
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
+        .rec-item:hover { transform: translateY(-5px); background: rgba(255, 255, 255, 0.08); }
+        .rec-cat { font-size: 0.75rem; color: var(--accent-color); font-weight: bold; text-transform: uppercase; }
+        .rec-title { font-size: 1rem; font-weight: bold; margin: 8px 0; color: #fff; }
+        .rec-reason { font-size: 0.85rem; color: #aaa; line-height: 1.4; }
+
+        /* 메인 인터페이스 */
+        .main-layout { display: grid; grid-template-columns: 1fr 350px; gap: 25px; }
+        #graph-container {
+            background: #000; border-radius: 20px; height: 600px;
+            position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+            border: 1px solid var(--border-color);
         }
-        .log-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
+        .input-card {
+            background: var(--card-bg); border-radius: 20px; padding: 25px;
+            border: 1px solid var(--border-color); height: fit-content;
         }
-        .log-title {
-            font-size: 1.1em;
-            font-weight: bold;
+        
+        /* 폼 요소 */
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; color: #999; }
+        input, select {
+            width: 100%; padding: 12px; border: 1px solid var(--border-color);
+            border-radius: 10px; background: #0b0e14; color: #fff; box-sizing: border-box;
         }
-        .log-category {
-            font-size: 0.85em;
-            background: #eee;
-            padding: 4px 8px;
-            border-radius: 4px;
+        .rating-group { display: flex; justify-content: space-between; }
+        button {
+            width: 100%; padding: 15px; border: none; border-radius: 12px;
+            background: var(--primary-color); color: #fff; font-weight: bold;
+            cursor: pointer; transition: 0.3s; margin-top: 10px;
         }
-        .log-stars {
-            color: #f1c40f;
-        }
-        .log-keywords {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-bottom: 8px;
-        }
+        button:hover { filter: brightness(1.2); transform: scale(1.02); }
+
+        /* 그래프 노드 스타일 */
+        .node circle { stroke: #fff; stroke-width: 1.5px; }
+        .node .label { font-size: 11px; fill: #fff; pointer-events: none; text-shadow: 0 0 5px #000; }
+        .link { stroke: #444; stroke-opacity: 0.4; }
+        .auto-fill-hint { font-size: 0.75rem; color: #00ffcc; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🎨 나의 문화예술 아카이브</h1>
+    <h1>🪐 CULTURE UNIVERSE</h1>
 
-    <div id="recommendation-box" class="card">
-        <h2>✨ 당신을 위한 맞춤 추천</h2>
-        <div id="recommendation-content"></div>
+    <div id="recommendation-box">
+        <h2 id="rec-top-keyword">✨ 분석된 당신의 취향: #키워드</h2>
+        <div class="rec-grid" id="rec-grid-container">
+            </div>
     </div>
 
-    <div class="card">
-        <h2>작품 감상 남기기</h2>
-        <form id="review-form">
-            <div class="form-group">
-                <label for="title">작품 제목</label>
-                <input type="text" id="title" required placeholder="예: 살바도르 달리전, 기생충, 노르웨이의 숲">
+    <div class="main-layout">
+        <div id="graph-container">
+            <div style="position: absolute; bottom: 15px; left: 20px; color: #555; font-size: 0.8rem;">
+                💡 노드를 드래그하여 네트워크를 탐험하세요.
             </div>
-            <div class="form-group">
-                <label for="category">분야</label>
-                <select id="category">
-                    <option value="영화">영화</option>
-                    <option value="소설">소설</option>
-                    <option value="연극">연극</option>
-                    <option value="미술 전시">미술 전시</option>
-                    <option value="음악/뮤지컬">음악/뮤지컬</option>
-                    <option value="기타">기타</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="keywords">핵심 키워드/장르 (쉼표로 구분)</label>
-                <input type="text" id="keywords" required placeholder="예: 초현실주의, 꿈, 스릴러, 로맨스">
-            </div>
-            <div class="form-group">
-                <label>별점</label>
-                <div class="rating">
-                    <label><input type="radio" name="rating" value="1"> ⭐ 1</label>
-                    <label><input type="radio" name="rating" value="2"> ⭐ 2</label>
-                    <label><input type="radio" name="rating" value="3"> ⭐ 3</label>
-                    <label><input type="radio" name="rating" value="4" checked> ⭐ 4</label>
-                    <label><input type="radio" name="rating" value="5"> ⭐ 5</label>
+        </div>
+
+        <div class="input-card">
+            <h2 style="margin-top: 0; font-size: 1.2rem; margin-bottom: 20px;">기록하기</h2>
+            <form id="review-form">
+                <div class="form-group">
+                    <label>작품 제목 (영문 영화명 자동완성 가능)</label>
+                    <input type="text" id="title" required placeholder="예: Inception, 기생충">
+                    <div id="auto-fill-msg" class="auto-fill-hint">✓ 작품 정보를 연동했습니다.</div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="review">감상평</label>
-                <textarea id="review" placeholder="작품을 보고 느낀 점을 자유롭게 적어주세요."></textarea>
-            </div>
-            <button type="submit">기록 및 추천 받기</button>
-        </form>
-    </div>
-
-    <div class="card">
-        <h2>최근 감상 기록</h2>
-        <ul id="log-list" class="log-list">
-            <p style="text-align: center; color: #999;">아직 등록된 기록이 없습니다.</p>
-        </ul>
+                <div class="form-group">
+                    <label>카테고리</label>
+                    <select id="category">
+                        <option value="영화">영화</option>
+                        <option value="소설">소설</option>
+                        <option value="공연">공연 (연극/뮤지컬)</option>
+                        <option value="전시">미술 전시</option>
+                        <option value="음반">음반 (Album)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>핵심 해시태그 (쉼표 구분)</label>
+                    <input type="text" id="keywords" required placeholder="#스릴러, #우주, #감성">
+                </div>
+                <div class="form-group">
+                    <label>별점</label>
+                    <div class="rating-group">
+                        <label><input type="radio" name="rating" value="1"> 1</label>
+                        <label><input type="radio" name="rating" value="2"> 2</label>
+                        <label><input type="radio" name="rating" value="3" checked> 3</label>
+                        <label><input type="radio" name="rating" value="4"> 4</label>
+                        <label><input type="radio" name="rating" value="5"> 5</label>
+                    </div>
+                </div>
+                <button type="submit">유니버스에 추가</button>
+            </form>
+        </div>
     </div>
 </div>
 
 <script>
-    // 감상 기록을 저장할 배열
-    let reviews = [];
-
-    // 추천용 Mock 데이터베이스 (키워드 기반 매칭)
-    const mockDatabase = {
-        "초현실주의": { title: "르네 마그리트 특별전", category: "미술 전시", reason: "최근 '초현실주의'에 매력을 느끼셨군요! 이성의 통제를 벗어나 상상력을 자극하는 마그리트의 작품들이 새로운 영감을 줄 것입니다." },
-        "SF": { title: "테드 창 - 당신 인생의 이야기", category: "소설", reason: "SF적 상상력에 높은 점수를 주셨네요. 과학적 사고와 철학적 질문이 완벽하게 결합된 이 단편집을 강력히 추천합니다." },
-        "로맨스": { title: "어바웃 타임", category: "영화", reason: "따뜻한 로맨스 감성을 좋아하시는군요! 시간 여행이라는 소재를 통해 사랑과 인생의 소중함을 다루는 이 영화가 취향에 맞으실 겁니다." },
-        "스릴러": { title: "연극 '데스트랩'", category: "연극", reason: "긴장감 넘치는 스릴러를 즐기셨군요. 반전에 반전을 거듭하는 블랙 코미디 스릴러 연극으로, 무대 위 생생한 긴장감을 느껴보세요." },
-        "역사": { title: "뮤지컬 '영웅'", category: "음악/뮤지컬", reason: "역사적 사실을 바탕으로 한 묵직한 서사를 좋아하시는 듯합니다. 웅장한 음악과 함께 안중근 의사의 이야기를 다룬 이 작품을 추천합니다." }
+    // --- 1. 추천 데이터베이스 (키워드당 5개 분야 풀세트) ---
+    const recommendationSets = {
+        "#ChristopherNolan": [
+            { cat: '소설', title: '어둠의 왼손', reason: '놀란의 영화처럼 정교한 세계관과 철학적 질문을 던지는 SF 고전입니다.' },
+            { cat: '영화', title: '프라이머 (Primer)', reason: '시간 여행의 인과관계를 가장 치밀하고 복잡하게 다룬 걸작입니다.' },
+            { cat: '공연', title: '연극 M.Butterfly', reason: '환상과 현실, 정체성의 경계가 무너지는 입체적인 구성의 연극입니다.' },
+            { cat: '전시', title: '에셔(M.C. Escher) 전', reason: '차원과 공간의 역설을 보여주는 그림들은 놀란 시각 효과의 원천입니다.' },
+            { cat: '음반', title: 'Pink Floyd - The Dark Side of the Moon', reason: '시간과 공간, 인간의 내면을 관통하는 거대한 서사의 컨셉 앨범입니다.' }
+        ],
+        "#스릴러": [
+            { cat: '소설', title: '살인자의 기억법', reason: '흐릿해지는 기억 속에서 필사적으로 진실을 쫓는 서늘한 심리 스릴러입니다.' },
+            { cat: '영화', title: '세븐 (Se7en)', reason: '인간의 죄악을 테마로 한 가장 완벽하고 암울한 분위기의 범죄 스릴러입니다.' },
+            { cat: '공연', title: '연극 데스트랩', reason: '반전에 반전을 거듭하며 관객의 숨통을 조이는 무대 위의 정통 스릴러입니다.' },
+            { cat: '전시', title: '필름 누아르 사진전', reason: '빛과 그림자의 강렬한 대비를 통해 서스펜스를 극대화한 시각적 경험입니다.' },
+            { cat: '음반', title: 'Portishead - Dummy', reason: '불안함과 멜랑콜리가 공존하는 트립합 장르로, 스릴러 영화의 한 장면에 있는 듯한 감각을 줍니다.' }
+        ],
+        "#우주": [
+            { cat: '소설', title: '하이페리온', reason: '우주를 배경으로 한 캔터베리 이야기라 불리는 장대한 스케일의 SF 대서사시입니다.' },
+            { cat: '영화', title: '2001 스페이스 오디세이', reason: '우주와 인간 진화에 대한 시각적 혁명이자 SF 영화 사상 가장 위대한 작품입니다.' },
+            { cat: '공연', title: '뮤지컬 귀환', reason: '과거와 현재를 넘나들며 시공간의 의미를 되새기게 하는 감동적인 극입니다.' },
+            { cat: '전시', title: 'NASA 우주 탐사선 특별전', reason: '인류의 호기심이 도달한 가장 먼 곳의 기록들을 직접 마주하는 경이로운 전시입니다.' },
+            { cat: '음반', title: 'David Bowie - Ziggy Stardust', reason: '우주에서 온 록스타를 주인공으로 한 화려하고 몽환적인 글램 록의 정점입니다.' }
+        ]
+        // 추가 키워드 셋은 생략(로직에서 랜덤 Fallback 제공)
     };
 
-    const form = document.getElementById('review-form');
-    const logList = document.getElementById('log-list');
-    const recommendationBox = document.getElementById('recommendation-box');
-    const recommendationContent = document.getElementById('recommendation-content');
+    const fallbacks = [
+        { cat: '소설', title: '호밀밭의 파수꾼' }, { cat: '영화', title: '이터널 선샤인' },
+        { cat: '공연', title: '뮤지컬 레미제라블' }, { cat: '전시', title: '에드워드 호퍼전' },
+        { cat: '음반', title: '라디오헤드 - Kid A' }
+    ];
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
+    // --- 2. API 및 연동 설정 ---
+    const OMDB_API_KEY = 'a6d09b74';
+    const titleInput = document.getElementById('title');
+    const categoryInput = document.getElementById('category');
+    const keywordsInput = document.getElementById('keywords');
 
-        // 입력값 가져오기
-        const title = document.getElementById('title').value;
-        const category = document.getElementById('category').value;
-        const keywordsInput = document.getElementById('keywords').value;
-        const rating = parseInt(document.querySelector('input[name="rating"]:checked').value);
-        const reviewText = document.getElementById('review').value;
-
-        // 키워드 배열화 (공백 제거)
-        const keywords = keywordsInput.split(',').map(k => k.trim()).filter(k => k);
-
-        // 새로운 리뷰 객체 생성 및 배열에 추가
-        const newReview = { title, category, keywords, rating, reviewText };
-        reviews.unshift(newReview); // 최신 항목을 앞에 추가
-
-        // 폼 초기화
-        form.reset();
-        document.querySelector('input[name="rating"][value="4"]').checked = true;
-
-        // 화면 업데이트
-        renderLogs();
-        updateRecommendation();
+    titleInput.addEventListener('blur', async function() {
+        const title = this.value.trim();
+        if (!title) return;
+        try {
+            const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_API_KEY}`);
+            const data = await res.json();
+            if (data.Response === "True") {
+                categoryInput.value = "영화";
+                const creator = data.Director.split(',')[0].trim().replace(/\s+/g, '');
+                const country = data.Country.split(',')[0].trim().replace(/\s+/g, '');
+                keywordsInput.value = `#${creator}, #${country}`;
+                document.getElementById('auto-fill-msg').style.display = 'block';
+                setTimeout(() => document.getElementById('auto-fill-msg').style.display = 'none', 3000);
+            }
+        } catch (e) {}
     });
 
-    // 기록 목록 렌더링 함수
-    function renderLogs() {
-        logList.innerHTML = '';
-        reviews.forEach(review => {
-            const stars = '⭐'.repeat(review.rating);
-            const li = document.createElement('li');
-            li.className = 'log-item';
-            li.innerHTML = `
-                <div class="log-header">
-                    <span class="log-title">${review.title}</span>
-                    <span class="log-category">${review.category}</span>
-                </div>
-                <div class="log-stars">${stars}</div>
-                <div class="log-keywords">키워드: ${review.keywords.join(', ')}</div>
-                <div>${review.reviewText}</div>
+    // --- 3. 데이터 시각화 및 로직 (D3.js) ---
+    let reviews = [];
+    let graphNodes = [];
+    let graphLinks = [];
+    let keywordSet = new Set();
+    const icons = { '영화': '🎬', '소설': '📕', '공연': '🎭', '전시': '🖼️', '음반': '💿' };
+
+    const width = 800; const height = 600;
+    const svg = d3.select("#graph-container").append("svg").attr("viewBox", `0 0 ${width} ${height}`).style("width", "100%").style("height", "100%");
+    const simulation = d3.forceSimulation().force("link", d3.forceLink().id(d => d.id).distance(100)).force("charge", d3.forceManyBody().strength(-300)).force("center", d3.forceCenter(width / 2, height / 2)).force("collide", d3.forceCollide().radius(40));
+
+    let linkGroup = svg.append("g").attr("class", "links");
+    let nodeGroup = svg.append("g").attr("class", "nodes");
+
+    document.getElementById('review-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const review = {
+            title: titleInput.value,
+            category: categoryInput.value,
+            keywords: keywordsInput.value.split(',').map(k => k.trim()).filter(k => k),
+            rating: parseInt(document.querySelector('input[name="rating"]:checked').value)
+        };
+        reviews.push(review);
+        this.reset();
+        updateRecommendation();
+        updateGraph(review);
+    });
+
+    function updateRecommendation() {
+        const scores = {};
+        reviews.forEach(r => r.keywords.forEach(kw => scores[kw] = (scores[kw] || 0) + r.rating));
+        let top = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+        
+        document.getElementById('rec-top-keyword').innerText = `✨ 분석된 당신의 우주 중심: ${top}`;
+        const container = document.getElementById('rec-grid-container');
+        container.innerHTML = '';
+
+        const set = recommendationSets[top] || fallbacks.map(f => ({ ...f, reason: `${top}의 감수성을 자극하는 명작을 추천합니다.` }));
+
+        set.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'rec-item';
+            div.innerHTML = `
+                <div class="rec-cat">${item.cat}</div>
+                <div class="rec-title">${item.title}</div>
+                <div class="rec-reason">${item.reason}</div>
             `;
-            logList.appendChild(li);
+            container.appendChild(div);
         });
+        document.getElementById('recommendation-box').style.display = 'block';
     }
 
-    // 추천 로직 함수
-    function updateRecommendation() {
-        // 별점 4점 이상인 작품들의 키워드만 추출
-        const highRatedKeywords = [];
-        reviews.forEach(review => {
-            if (review.rating >= 4) {
-                highRatedKeywords.push(...review.keywords);
+    function updateGraph(review) {
+        const rid = "R_" + (reviews.length - 1);
+        graphNodes.push({ id: rid, label: review.title, color: '#ff3e81', r: 25, icon: icons[review.category] });
+        review.keywords.forEach(kw => {
+            const kid = "K_" + kw;
+            if (!keywordSet.has(kid)) {
+                keywordSet.add(kid);
+                graphNodes.push({ id: kid, label: kw, color: '#5d5bf0', r: 18, icon: '#' });
             }
+            graphLinks.push({ source: rid, target: kid });
         });
 
-        if (highRatedKeywords.length === 0) {
-            recommendationBox.style.display = 'none';
-            return;
-        }
+        const l = linkGroup.selectAll("line").data(graphLinks).enter().append("line").attr("class", "link");
+        const n = nodeGroup.selectAll("g").data(graphNodes).enter().append("g").attr("class", "node").call(d3.drag().on("start", s).on("drag", d).on("end", e));
 
-        // 키워드 빈도수 계산
-        const frequency = {};
-        let maxCount = 0;
-        let topKeyword = '';
+        n.append("circle").attr("r", d => d.r).attr("fill", d => d.color);
+        n.append("text").attr("text-anchor", "middle").attr("dy", 4).style("font-size", "14px").text(d => d.icon);
+        n.append("text").attr("class", "label").attr("dy", d => d.r + 15).attr("text-anchor", "middle").text(d => d.label);
 
-        highRatedKeywords.forEach(keyword => {
-            frequency[keyword] = (frequency[keyword] || 0) + 1;
-            if (frequency[keyword] > maxCount) {
-                maxCount = frequency[keyword];
-                topKeyword = keyword;
-            }
+        simulation.nodes(graphNodes).on("tick", () => {
+            l.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+            n.attr("transform", d => `translate(${d.x},${d.y})`);
         });
+        simulation.force("link").links(graphLinks);
+        simulation.alpha(1).restart();
 
-        // 추천 결과 생성
-        let recTitle, recCategory, recReason;
-
-        // 미리 정의된 데이터베이스에 키워드가 있는 경우
-        if (mockDatabase[topKeyword]) {
-            recTitle = mockDatabase[topKeyword].title;
-            recCategory = mockDatabase[topKeyword].category;
-            recReason = mockDatabase[topKeyword].reason;
-        } else {
-            // 알 수 없는 키워드일 경우 동적 생성
-            const categories = ['영화', '소설', '연극', '미술 전시'];
-            const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-            recTitle = `'${topKeyword}'의 정수를 담은 명작`;
-            recCategory = randomCategory;
-            recReason = `최근 <b>'${topKeyword}'</b>(이)라는 키워드에 높은 흥미를 보이셨네요! 기존에 즐기시던 장르를 벗어나, 이번에는 ${randomCategory} 분야에서 해당 감성을 충족시켜줄 이 작품을 감상해보시는 건 어떨까요?`;
-        }
-
-        // 추천 영역에 표시
-        recommendationContent.innerHTML = `
-            <h3 style="margin-bottom: 5px;">[${recCategory}] ${recTitle}</h3>
-            <p style="margin-top: 0; font-size: 1.1em;">${recReason}</p>
-        `;
-        recommendationBox.style.display = 'block';
+        function s(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+        function d(event, d) { d.fx = event.x; d.fy = event.y; }
+        function e(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
     }
 </script>
-
 </body>
 </html>
