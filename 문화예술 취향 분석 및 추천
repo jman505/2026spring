@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문화예술 취향 분석 및 추천</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f5f7fa;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        textarea {
+            resize: vertical;
+            height: 100px;
+        }
+        .rating {
+            display: flex;
+            gap: 15px;
+        }
+        .rating label {
+            font-weight: normal;
+            cursor: pointer;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        #recommendation-box {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            color: #fff;
+            display: none;
+        }
+        #recommendation-box h2 {
+            color: #fff;
+            margin-top: 0;
+        }
+        .log-list {
+            list-style: none;
+            padding: 0;
+        }
+        .log-item {
+            background: var(--card-bg);
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .log-title {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .log-category {
+            font-size: 0.85em;
+            background: #eee;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .log-stars {
+            color: #f1c40f;
+        }
+        .log-keywords {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎨 나의 문화예술 아카이브</h1>
+
+    <div id="recommendation-box" class="card">
+        <h2>✨ 당신을 위한 맞춤 추천</h2>
+        <div id="recommendation-content"></div>
+    </div>
+
+    <div class="card">
+        <h2>작품 감상 남기기</h2>
+        <form id="review-form">
+            <div class="form-group">
+                <label for="title">작품 제목</label>
+                <input type="text" id="title" required placeholder="예: 살바도르 달리전, 기생충, 노르웨이의 숲">
+            </div>
+            <div class="form-group">
+                <label for="category">분야</label>
+                <select id="category">
+                    <option value="영화">영화</option>
+                    <option value="소설">소설</option>
+                    <option value="연극">연극</option>
+                    <option value="미술 전시">미술 전시</option>
+                    <option value="음악/뮤지컬">음악/뮤지컬</option>
+                    <option value="기타">기타</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="keywords">핵심 키워드/장르 (쉼표로 구분)</label>
+                <input type="text" id="keywords" required placeholder="예: 초현실주의, 꿈, 스릴러, 로맨스">
+            </div>
+            <div class="form-group">
+                <label>별점</label>
+                <div class="rating">
+                    <label><input type="radio" name="rating" value="1"> ⭐ 1</label>
+                    <label><input type="radio" name="rating" value="2"> ⭐ 2</label>
+                    <label><input type="radio" name="rating" value="3"> ⭐ 3</label>
+                    <label><input type="radio" name="rating" value="4" checked> ⭐ 4</label>
+                    <label><input type="radio" name="rating" value="5"> ⭐ 5</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="review">감상평</label>
+                <textarea id="review" placeholder="작품을 보고 느낀 점을 자유롭게 적어주세요."></textarea>
+            </div>
+            <button type="submit">기록 및 추천 받기</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>최근 감상 기록</h2>
+        <ul id="log-list" class="log-list">
+            <p style="text-align: center; color: #999;">아직 등록된 기록이 없습니다.</p>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // 감상 기록을 저장할 배열
+    let reviews = [];
+
+    // 추천용 Mock 데이터베이스 (키워드 기반 매칭)
+    const mockDatabase = {
+        "초현실주의": { title: "르네 마그리트 특별전", category: "미술 전시", reason: "최근 '초현실주의'에 매력을 느끼셨군요! 이성의 통제를 벗어나 상상력을 자극하는 마그리트의 작품들이 새로운 영감을 줄 것입니다." },
+        "SF": { title: "테드 창 - 당신 인생의 이야기", category: "소설", reason: "SF적 상상력에 높은 점수를 주셨네요. 과학적 사고와 철학적 질문이 완벽하게 결합된 이 단편집을 강력히 추천합니다." },
+        "로맨스": { title: "어바웃 타임", category: "영화", reason: "따뜻한 로맨스 감성을 좋아하시는군요! 시간 여행이라는 소재를 통해 사랑과 인생의 소중함을 다루는 이 영화가 취향에 맞으실 겁니다." },
+        "스릴러": { title: "연극 '데스트랩'", category: "연극", reason: "긴장감 넘치는 스릴러를 즐기셨군요. 반전에 반전을 거듭하는 블랙 코미디 스릴러 연극으로, 무대 위 생생한 긴장감을 느껴보세요." },
+        "역사": { title: "뮤지컬 '영웅'", category: "음악/뮤지컬", reason: "역사적 사실을 바탕으로 한 묵직한 서사를 좋아하시는 듯합니다. 웅장한 음악과 함께 안중근 의사의 이야기를 다룬 이 작품을 추천합니다." }
+    };
+
+    const form = document.getElementById('review-form');
+    const logList = document.getElementById('log-list');
+    const recommendationBox = document.getElementById('recommendation-box');
+    const recommendationContent = document.getElementById('recommendation-content');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // 입력값 가져오기
+        const title = document.getElementById('title').value;
+        const category = document.getElementById('category').value;
+        const keywordsInput = document.getElementById('keywords').value;
+        const rating = parseInt(document.querySelector('input[name="rating"]:checked').value);
+        const reviewText = document.getElementById('review').value;
+
+        // 키워드 배열화 (공백 제거)
+        const keywords = keywordsInput.split(',').map(k => k.trim()).filter(k => k);
+
+        // 새로운 리뷰 객체 생성 및 배열에 추가
+        const newReview = { title, category, keywords, rating, reviewText };
+        reviews.unshift(newReview); // 최신 항목을 앞에 추가
+
+        // 폼 초기화
+        form.reset();
+        document.querySelector('input[name="rating"][value="4"]').checked = true;
+
+        // 화면 업데이트
+        renderLogs();
+        updateRecommendation();
+    });
+
+    // 기록 목록 렌더링 함수
+    function renderLogs() {
+        logList.innerHTML = '';
+        reviews.forEach(review => {
+            const stars = '⭐'.repeat(review.rating);
+            const li = document.createElement('li');
+            li.className = 'log-item';
+            li.innerHTML = `
+                <div class="log-header">
+                    <span class="log-title">${review.title}</span>
+                    <span class="log-category">${review.category}</span>
+                </div>
+                <div class="log-stars">${stars}</div>
+                <div class="log-keywords">키워드: ${review.keywords.join(', ')}</div>
+                <div>${review.reviewText}</div>
+            `;
+            logList.appendChild(li);
+        });
+    }
+
+    // 추천 로직 함수
+    function updateRecommendation() {
+        // 별점 4점 이상인 작품들의 키워드만 추출
+        const highRatedKeywords = [];
+        reviews.forEach(review => {
+            if (review.rating >= 4) {
+                highRatedKeywords.push(...review.keywords);
+            }
+        });
+
+        if (highRatedKeywords.length === 0) {
+            recommendationBox.style.display = 'none';
+            return;
+        }
+
+        // 키워드 빈도수 계산
+        const frequency = {};
+        let maxCount = 0;
+        let topKeyword = '';
+
+        highRatedKeywords.forEach(keyword => {
+            frequency[keyword] = (frequency[keyword] || 0) + 1;
+            if (frequency[keyword] > maxCount) {
+                maxCount = frequency[keyword];
+                topKeyword = keyword;
+            }
+        });
+
+        // 추천 결과 생성
+        let recTitle, recCategory, recReason;
+
+        // 미리 정의된 데이터베이스에 키워드가 있는 경우
+        if (mockDatabase[topKeyword]) {
+            recTitle = mockDatabase[topKeyword].title;
+            recCategory = mockDatabase[topKeyword].category;
+            recReason = mockDatabase[topKeyword].reason;
+        } else {
+            // 알 수 없는 키워드일 경우 동적 생성
+            const categories = ['영화', '소설', '연극', '미술 전시'];
+            const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+            recTitle = `'${topKeyword}'의 정수를 담은 명작`;
+            recCategory = randomCategory;
+            recReason = `최근 <b>'${topKeyword}'</b>(이)라는 키워드에 높은 흥미를 보이셨네요! 기존에 즐기시던 장르를 벗어나, 이번에는 ${randomCategory} 분야에서 해당 감성을 충족시켜줄 이 작품을 감상해보시는 건 어떨까요?`;
+        }
+
+        // 추천 영역에 표시
+        recommendationContent.innerHTML = `
+            <h3 style="margin-bottom: 5px;">[${recCategory}] ${recTitle}</h3>
+            <p style="margin-top: 0; font-size: 1.1em;">${recReason}</p>
+        `;
+        recommendationBox.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
