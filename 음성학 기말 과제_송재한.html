@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>문화예술 유니버스 5.1 - Monetization & Archive</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        :root {
+            --primary: #6c5ce7; --secondary: #00cec9; --accent: #fd79a8;
+            --bg-dark: #05050a; --glass-bg: rgba(20, 20, 35, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #f5f6fa; --text-muted: #a4b0be;
+            --ad-color: #f1c40f;
+        }
+
+        body {
+            font-family: 'Pretendard', sans-serif; background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at 15% 50%, rgba(108, 92, 231, 0.15) 0%, transparent 50%),
+                              radial-gradient(circle at 85% 30%, rgba(0, 206, 201, 0.15) 0%, transparent 50%);
+            color: var(--text-main); margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        /* 헤더 및 통계 대시보드 */
+        header { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
+        .logo { font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 0 15px var(--primary); }
+        
+        .header-right { display: flex; gap: 15px; align-items: center; pointer-events: auto; }
+        
+        .stats-board {
+            display: flex; gap: 20px; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 10px 25px; border-radius: 30px; border: 1px solid var(--glass-border); box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 1.2rem; font-weight: 700; color: var(--secondary); }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;}
+
+        /* 보관함 버튼 */
+        .btn-archive {
+            background: rgba(255, 255, 255, 0.1); border: 1px solid var(--glass-border); color: #fff;
+            padding: 10px 20px; border-radius: 30px; font-weight: bold; cursor: pointer; transition: 0.3s;
+            backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px; font-size: 0.95rem;
+        }
+        .btn-archive:hover { background: var(--primary); border-color: var(--primary); box-shadow: 0 0 15px rgba(108, 92, 231, 0.5); }
+
+        .main-container { flex: 1; position: relative; width: 100%; height: 100%; }
+        #graph-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; cursor: grab; z-index: 1; }
+        #graph-container:active { cursor: grabbing; }
+
+        /* 좌측 레이아웃 래퍼 */
+        .left-sidebar {
+            position: absolute; left: 40px; bottom: 30px; width: 420px; max-height: calc(100vh - 120px);
+            pointer-events: none; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end;
+        }
+
+        /* 좌측 정밀 취향 & 추천 패널 */
+        .rec-panel {
+            background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 20px; padding: 25px; box-sizing: border-box;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8); display: none;
+            overflow-y: auto; pointer-events: auto; max-height: 100%;
+        }
+        .rec-panel::-webkit-scrollbar { width: 6px; }
+        .rec-panel::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 3px; }
+
+        .rec-panel h3 { margin: 0 0 15px 0; font-size: 1.3rem; color: #fff; display: flex; align-items: center; gap: 8px;}
+        .rec-box { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 12px; border-left: 4px solid var(--secondary); margin-bottom: 20px;}
+        .rec-box p { margin: 0; font-size: 0.95rem; color: #ddd; line-height: 1.7; }
+        .rec-box .highlight { color: #fff; font-weight: 900; font-size: 1.1rem; text-shadow: 0 0 10px rgba(0, 206, 201, 0.5); }
+        
+        .rec-work-box { background: linear-gradient(145deg, rgba(108, 92, 231, 0.2), rgba(253, 121, 168, 0.15)); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .rec-work-header { font-size: 1rem; font-weight: 900; color: var(--accent); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;}
+        .rec-item { display: flex; gap: 18px; margin-bottom: 15px;}
+        .rec-item img { width: 90px; height: 130px; object-fit: cover; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.6); }
+        .rec-item-info { flex: 1; display: flex; flex-direction: column;}
+        .rec-item-title { font-weight: 800; color: #fff; margin-bottom: 6px; font-size: 1.2rem; line-height: 1.3; }
+        .rec-item-tags { font-size: 0.8rem; color: var(--secondary); margin-bottom: 10px; font-weight: bold; letter-spacing: -0.5px;}
+        .rec-item-reason { font-size: 0.9rem; color: #e0e0e0; line-height: 1.6; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 3px solid var(--primary); margin-bottom: 15px;}
+        .rec-item-reason strong { color: #fff; }
+
+        /* [신규] 제휴 구매/예매 버튼 */
+        .affiliate-btn {
+            display: inline-block; width: 100%; text-align: center; padding: 12px; border-radius: 8px;
+            font-weight: 800; font-size: 0.95rem; text-decoration: none; transition: 0.3s;
+            background: linear-gradient(90deg, var(--secondary), #0984e3); color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 206, 201, 0.4); box-sizing: border-box; margin-top: auto;
+        }
+        .affiliate-btn:hover { filter: brightness(1.2); transform: translateY(-2px); }
+
+        /* 우측 레이아웃 래퍼 */
+        .right-sidebar {
+            position: absolute; right: 30px; top: 20px; bottom: 30px; width: 340px;
+            display: flex; flex-direction: column; gap: 20px; pointer-events: none; z-index: 10;
+        }
+
+        /* 우측 상단 입력 폼 패널 */
+        .control-panel {
+            flex: 1; min-height: 0; background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border); border-radius: 24px; padding: 30px; box-sizing: border-box;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6); overflow-y: auto; pointer-events: auto;
+        }
+        .control-panel::-webkit-scrollbar { width: 6px; }
+        .control-panel::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+        input[type="text"], select, textarea {
+            width: 100%; padding: 12px 15px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+            color: #fff; border-radius: 12px; font-family: inherit; font-size: 0.95rem; box-sizing: border-box; transition: 0.3s;
+        }
+        textarea { resize: vertical; min-height: 60px; max-height: 120px; line-height: 1.4; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 15px rgba(108, 92, 231, 0.4); }
+        .auto-fill-hint { font-size: 0.75rem; color: var(--secondary); margin-top: 8px; display: none; }
+        
+        /* 별점 UI */
+        .star-rating { display: flex; flex-direction: row-reverse; justify-content: flex-end; background: rgba(0,0,0,0.3); padding: 10px 15px; border-radius: 12px; }
+        .star-rating input { display: none; }
+        .star-rating label { font-size: 1.8rem; color: #444; cursor: pointer; transition: 0.2s; padding: 0 2px; }
+        .star-rating input:checked ~ label, .star-rating input:checked + label, .star-rating label:hover ~ label, .star-rating label:hover {
+            color: #f1c40f; text-shadow: 0 0 15px rgba(241, 196, 15, 0.8);
+        }
+
+        button[type="submit"] {
+            width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 800; cursor: pointer; transition: 0.2s; margin-top: 5px;
+        }
+        button[type="submit"]:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(253, 121, 168, 0.5); }
+        .btn-clear { background: transparent; color: var(--text-muted); border: 1px dashed #555; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; margin-top: 20px; width: 100%; transition: 0.3s; }
+        .btn-clear:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: #fff;}
+
+        /* 우측 하단 광고 패널 */
+        .ad-panel {
+            flex-shrink: 0; background: linear-gradient(135deg, rgba(241, 196, 15, 0.15), rgba(0, 0, 0, 0.6));
+            border: 1px dashed rgba(241, 196, 15, 0.5); border-radius: 16px; padding: 20px; box-sizing: border-box;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7); cursor: pointer; transition: 0.3s; pointer-events: auto;
+        }
+        .ad-panel:hover { transform: translateY(-5px); background: rgba(241, 196, 15, 0.25); border-color: var(--ad-color); }
+        .ad-tag { font-size: 0.7rem; color: var(--ad-color); font-weight: bold; border: 1px solid var(--ad-color); padding: 3px 8px; border-radius: 20px; display: inline-block; margin-bottom: 10px; text-transform: uppercase;}
+        .ad-title { font-size: 1.05rem; color: #fff; font-weight: 800; margin: 0 0 6px 0; }
+        .ad-desc { font-size: 0.85rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+        /* [신규] 소감 보관함 모달 */
+        .archive-modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000;
+            display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s;
+        }
+        .archive-content {
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 24px;
+            width: 90%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8); position: relative; transform: translateY(20px); transition: transform 0.3s;
+        }
+        .archive-header {
+            padding: 25px 30px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;
+        }
+        .archive-header h2 { margin: 0; color: #fff; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .close-archive { background: transparent; border: none; color: #fff; font-size: 1.8rem; cursor: pointer; padding: 0; line-height: 1; opacity: 0.7; transition: 0.2s;}
+        .close-archive:hover { opacity: 1; transform: scale(1.1); }
+        .archive-body { padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .archive-body::-webkit-scrollbar { width: 8px; }
+        .archive-body::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+        .empty-msg { text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 1.1rem; }
+        
+        .review-card {
+            background: rgba(0,0,0,0.4); border-left: 4px solid var(--primary); border-radius: 12px; padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .review-meta { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; }
+        .review-title { font-size: 1.15rem; font-weight: 800; color: #fff; margin: 0; }
+        .review-rating { color: #f1c40f; font-weight: bold; letter-spacing: 2px;}
+        .review-comment { font-size: 0.95rem; color: #e0e0e0; line-height: 1.6; font-style: italic; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;}
+
+        /* D3 Elements & Tooltip */
+        .link { stroke: #ffffff; stroke-opacity: 0.2; transition: 0.3s; }
+        .node circle { stroke: rgba(255,255,255,0.8); stroke-width: 1.5px; transition: 0.3s; }
+        .node:hover circle { stroke-width: 3px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.8)); }
+        .node-icon { font-size: 14px; pointer-events: none; text-anchor: middle; dominant-baseline: central; text-shadow: 0 0 5px #000; }
+        .node-label { font-size: 11px; fill: rgba(255,255,255,0.8); pointer-events: none; opacity: 0; transition: 0.3s; text-shadow: 0 2px 4px #000; }
+        .node:hover .node-label { opacity: 1; fill: #fff; font-weight: bold; font-size: 13px; }
+
+        #tooltip {
+            position: absolute; opacity: 0; background: var(--glass-bg); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--primary); padding: 18px; border-radius: 16px; pointer-events: none;
+            color: #fff; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            transform: translate(-50%, -100%); margin-top: -15px; transition: opacity 0.2s; min-width: 180px; text-align: center; max-width: 250px;
+        }
+        #tooltip img { width: 100%; max-width: 150px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .tt-title { color: var(--secondary); font-weight: 900; margin-bottom: 6px; font-size: 1.15rem; line-height: 1.3;}
+        .tt-meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;}
+        .tt-comment { font-size: 0.85rem; color: #ddd; font-style: italic; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-top: 5px; text-align: left; line-height: 1.4;}
+
+        /* 모바일 대응 */
+        @media (max-width: 900px) {
+            body { overflow-y: auto; display: block; }
+            #graph-container { position: fixed; top: 0; left: 0; right: 0; height: 100vh; z-index: 0; }
+            header { flex-direction: column; gap: 15px; padding: 15px; position: relative; z-index: 10; }
+            .header-right { flex-direction: column; width: 100%; }
+            .btn-archive { width: 100%; justify-content: center; }
+            
+            .main-container { display: flex; flex-direction: column; padding: 15px; gap: 20px; z-index: 10; box-sizing: border-box;}
+            
+            .left-sidebar, .right-sidebar { position: relative; left: auto; right: auto; top: auto; bottom: auto; width: 100%; max-height: none; pointer-events: auto; display: flex; flex-direction: column; gap: 20px; }
+            .control-panel, .rec-panel, .ad-panel { width: 100%; max-height: none; overflow: visible; box-sizing: border-box; }
+            
+            .right-sidebar { order: 1; }
+            .left-sidebar { order: 2; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">🪐 CULTURE UNIVERSE</div>
+    <div class="header-right">
+        <div class="stats-board">
+            <div class="stat-item"><div class="stat-value" id="stat-works">0</div><div class="stat-label">Works</div></div>
+            <div class="stat-item"><div class="stat-value" id="stat-keywords">0</div><div class="stat-label">Keywords</div></div>
+        </div>
+        <button class="btn-archive" onclick="openArchive()">📂 소감 보관함</button>
+    </div>
+</header>
+
+<div class="archive-modal" id="archive-modal">
+    <div class="archive-content" id="archive-content">
+        <div class="archive-header">
+            <h2>📂 내 소감 노트</h2>
+            <button class="close-archive" onclick="closeArchive()">&times;</button>
+        </div>
+        <div class="archive-body" id="archive-body">
+            </div>
+    </div>
+</div>
+
+<div class="main-container">
+    <div id="graph-container"></div>
+    <div id="tooltip"></div>
+
+    <div class="left-sidebar">
+        <div id="rec-panel" class="rec-panel">
+            <h3>🧠 AI 딥 다이브 취향 리포트</h3>
+            <div class="rec-box">
+                <p id="rec-reason">유저님의 평가 데이터를 기반으로 가중치 시뮬레이션을 구동합니다.</p>
+            </div>
+            
+            <div id="rec-work-container" class="rec-work-box" style="display: none;">
+                <div class="rec-work-header">🎯 알고리즘 기반 완벽한 다음 타겟</div>
+                <div class="rec-item">
+                    <img id="rec-img" src="">
+                    <div class="rec-item-info">
+                        <div class="rec-item-title" id="rec-title"></div>
+                        <div class="rec-item-tags" id="rec-tags"></div>
+                        <a id="rec-affiliate-btn" href="#" target="_blank" class="affiliate-btn">보러가기</a>
+                    </div>
+                </div>
+                <div class="rec-item-reason" id="rec-desc"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="right-sidebar">
+        <div class="control-panel">
+            <h2 style="margin-top:0;color:#fff;">우주 기록소 <span>🚀</span></h2>
+            <form id="review-form">
+                <div class="form-group">
+                    <label>카테고리</label>
+                    <select id="category">
+                        <option value="영화">🎬 영화 (Movie)</option>
+                        <option value="음반">💿 음반 (Music)</option>
+                        <option value="소설">📕 도서/소설 (Book)</option>
+                        <option value="공연">🎭 공연/뮤지컬 (Theater)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>작품 제목 (입력 후 바깥 클릭 시 자동완성)</label>
+                    <input type="text" id="title" required placeholder="예: 매트릭스, 다프트 펑크, 피그말리온">
+                    <div id="auto-fill-msg" class="auto-fill-hint">✓ 감독/연대 정보까지 파싱 완료!</div>
+                </div>
+                <div class="form-group">
+                    <label>핵심 해시태그 (쉼표로 구분)</label>
+                    <input type="text" id="keywords" required placeholder="예: 시뮬라크르, 철학, 우주">
+                </div>
+                <div class="form-group">
+                    <label>한 줄 소감 (선택 사항)</label>
+                    <textarea id="comment" placeholder="이 작품이 당신의 우주에 어떤 자국을 남겼나요?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>내 취향 별점</label>
+                    <div class="star-rating">
+                        <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
+                        <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
+                        <input type="radio" id="star3" name="rating" value="3" checked><label for="star3">★</label>
+                        <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
+                        <input type="radio" id="star1" name="rating" value="1"><label for="star1">★</label>
+                    </div>
+                </div>
+                <button type="submit">유니버스 팽창시키기</button>
+            </form>
+            <button class="btn-clear" onclick="clearUniverse()">데이터 초기화 (빅뱅)</button>
+        </div>
+
+        <div class="ad-panel" id="ad-box">
+            <span class="ad-tag">Ad.</span>
+            <p class="ad-title" id="ad-title">Culture+ 프리미엄</p>
+            <p class="ad-desc" id="ad-desc">지금 바로 우주를 팽창시킬 특별한 혜택을 확인하세요.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. 상태 및 API 설정 ---
+    const TMDB_API_KEY = 'b4510e86b2c4df2ccc879f8852a9a0f4'; 
+    
+    let reviews = JSON.parse(localStorage.getItem('cu_reviews_v5')) || [];
+    let graphNodes = JSON.parse(localStorage.getItem('cu_nodes_v5')) || [];
+    let graphLinks = JSON.parse(localStorage.getItem('cu_links_v5')) || [];
+    const keywordSet = new Set(graphNodes.filter(n => n.type === 'keyword').map(n => n.id));
+
+    const colors = { '영화': '#fd79a8', '음반': '#00b894', '소설': '#0984e3', '공연': '#e84393', '키워드': '#6c5ce7' };
+    const tmdbGenres = { 28: '액션', 12: '모험', 16: '애니메이션', 35: '코미디', 80: '범죄', 99: '다큐멘터리', 18: '드라마', 10751: '가족', 14: '판타지', 36: '역사', 27: '공포', 10402: '음악', 9648: '미스터리', 10749: '로맨스', 878: 'SF', 10770: 'TV영화', 53: '스릴러', 10752: '전쟁', 37: '서부' };
+    
+    const adDatabase = {
+        '철학': { title: "📚 민음사 세계문학전집 기획전", desc: "사유의 깊이를 더해줄 고전, 지금 20% 특별 할인." },
+        'SF': { title: "🎮 대작 우주 탐험 게임 '스타필드'", desc: "SF 매니아를 위한 한정판 패키지 30% 할인 중!" },
+        '일렉트로닉': { title: "🎧 마샬(Marshall) 플래그십 오디오", desc: "극강의 해상도로 비트를 온몸으로 느끼세요." },
+        '스릴러': { title: "🕵️ 방탈출 카페 '시크릿 챔버'", desc: "짜릿함을 즐기는 당신! 극강의 난이도에 도전하세요." },
+        'default': { title: "💳 Culture+ 멤버십 라운지", desc: "나만의 취향을 위해, 예술/전시 결제 시 무제한 15% 캐시백!" }
+    };
+
+    // [핵심] 제휴 링크(link, linkText)가 포함된 마스터 DB
+    const masterRecDB = [
+        { title: "블레이드 러너 2049", cat: "영화", tags: ["드니 빌뇌브", "SF", "시뮬라크르", "철학", "디스토피아", "2010년대"], img: "https://image.tmdb.org/t/p/w200/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg", desc: "원본과 복제본(시뮬라크르)의 경계가 무너진 세계에서 인간 존재에 대한 압도적인 질문을 던집니다.", link: "https://www.netflix.com/search?q=블레이드러너", linkText: "넷플릭스에서 보기" },
+        { title: "파이트 클럽", cat: "영화", tags: ["데이빗 핀처", "스릴러", "철학", "자본주의비판", "원작", "1990년대"], img: "https://image.tmdb.org/t/p/w200/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", desc: "소비 사회에 매몰된 현대인의 공허함을 타격감 있게 파괴하며 철학적 카타르시스를 선사합니다.", link: "https://watcha.com/search?query=파이트클럽", linkText: "왓챠에서 감상하기" },
+        { title: "조지 버나드 쇼 - 피그말리온", cat: "소설", tags: ["희곡", "사회비판", "문학", "원작", "고전", "1910년대"], img: "https://books.google.com/books/publisher/content/images/frontcover/l_0zEAAAQBAJ?fife=w200-h300", desc: "계급과 언어에 대한 날카로운 통찰을 담은, 영원히 늙지 않는 최고의 희곡입니다.", link: "http://www.yes24.com/Product/Search?domain=ALL&query=피그말리온", linkText: "예스24에서 구매하기" },
+        { title: "Underworld - Dubnobasswithmyheadman", cat: "음반", tags: ["테크노", "일렉트로닉", "명반", "언더그라운드", "1990년대"], img: "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/90/16/e0/9016e09c-2c96-302d-0518-e3663b652875/00602537905872.rgb.jpg/300x300bb.jpg", desc: "단순한 클럽 음악을 예술의 경지로 끌어올린 인더스트리얼 테크노의 정수입니다.", link: "https://music.apple.com/kr/search?term=Underworld%20Dubnobasswithmyheadman", linkText: "Apple Music 듣기" },
+        { title: "매트릭스", cat: "영화", tags: ["워쇼스키", "SF", "시뮬라크르", "철학", "액션", "1990년대"], img: "https://image.tmdb.org/t/p/w200/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg", desc: "장 보드리야르의 철학을 스크린 위에 완벽히 구현한, 지적 쾌감의 마스터피스입니다.", link: "https://www.netflix.com/search?q=매트릭스", linkText: "넷플릭스에서 보기" },
+        { title: "프로젝트 헤일메리", cat: "소설", tags: ["우주", "SF", "생존", "감동적", "2020년대"], img: "https://books.google.com/books/publisher/content/images/frontcover/5iY1EAAAQBAJ?fife=w200-h300", desc: "과학적 치밀함과 압도적인 인류애가 결합된 21세기 최고의 하드 SF 문학입니다.", link: "http://www.yes24.com/Product/Search?domain=ALL&query=프로젝트헤일메리", linkText: "예스24에서 구매하기" },
+        { title: "오페라의 유령", cat: "공연", tags: ["앤드루 로이드 웨버", "로맨스", "스릴러", "클래식", "1980년대", "비극"], img: "https://ticketimage.interpark.com/Play/image/large/22/22016836_p.gif", desc: "스릴러와 로맨스가 공존하는 무대예술의 최고봉입니다.", link: "https://tickets.interpark.com/search?keyword=오페라의%20유령", linkText: "인터파크 예매하기" }
+    ];
+
+    const titleInput = document.getElementById('title');
+    const categoryInput = document.getElementById('category');
+    const keywordsInput = document.getElementById('keywords');
+    const commentInput = document.getElementById('comment');
+    let currentItemPoster = null;
+
+    // --- 2. 스마트 자동완성 ---
+    titleInput.addEventListener('blur', async function() {
+        const title = this.value.trim();
+        const category = categoryInput.value;
+        if (!title) return;
+        currentItemPoster = null; document.getElementById('auto-fill-msg').style.display = 'none'; 
+
+        try {
+            if (category === "영화") {
+                const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=ko-KR&query=${encodeURIComponent(title)}&page=1`);
+                const data = await res.json();
+                if (data.results && data.results.length > 0) {
+                    const bestMatch = data.results[0];
+                    const decade = bestMatch.release_date ? bestMatch.release_date.substring(0, 3) + "0년대" : "연도미상";
+                    let genreKeywords = bestMatch.genre_ids ? bestMatch.genre_ids.slice(0, 2).map(id => tmdbGenres[id]).filter(g => g) : [];
+                    
+                    try {
+                        const creditRes = await fetch(`https://api.themoviedb.org/3/movie/${bestMatch.id}/credits?api_key=${TMDB_API_KEY}&language=ko-KR`);
+                        const creditData = await creditRes.json();
+                        const directorObj = creditData.crew.find(member => member.job === 'Director');
+                        if(directorObj && directorObj.name) genreKeywords.unshift(directorObj.name); 
+                    } catch(e) {}
+
+                    keywordsInput.value = `${genreKeywords.join(', ')}, ${decade}`;
+                    if(bestMatch.poster_path) currentItemPoster = `https://image.tmdb.org/t/p/w200${bestMatch.poster_path}`;
+                    titleInput.value = bestMatch.title; 
+                    showHint("🎬 영화 및 감독 정보 파싱 완료!");
+                }
+            } 
+            else if (category === "음반") {
+                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(title)}&entity=album&limit=1&country=KR`);
+                const data = await res.json();
+                if (data.results && data.results.length > 0) {
+                    const album = data.results[0];
+                    const decade = album.releaseDate ? album.releaseDate.substring(0, 3) + "0년대" : "연도미상";
+                    keywordsInput.value = `${album.artistName}, ${album.primaryGenreName}, ${decade}`;
+                    if(album.artworkUrl100) currentItemPoster = album.artworkUrl100.replace('100x100bb', '300x300bb');
+                    titleInput.value = album.collectionName; 
+                    showHint("💿 앨범 연대/아티스트 파싱 완료!");
+                }
+            }
+            else if (category === "소설") {
+                const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}&maxResults=1`);
+                const data = await res.json();
+                if (data.items && data.items.length > 0) {
+                    const book = data.items[0].volumeInfo;
+                    const author = book.authors ? book.authors[0] : "작가미상";
+                    const genre = book.categories ? book.categories[0] : "문학";
+                    const decade = book.publishedDate ? book.publishedDate.substring(0, 3) + "0년대" : "연도미상";
+                    keywordsInput.value = `${author}, ${genre}, ${decade}`;
+                    if(book.imageLinks && book.imageLinks.thumbnail) currentItemPoster = book.imageLinks.thumbnail.replace('http:', 'https:');
+                    titleInput.value = book.title;
+                    showHint("📕 도서 메타데이터 연동 완료!");
+                }
+            }
+            else if (category === "공연") {
+                keywordsInput.value = "무대예술, 관극, 감동적, 2020년대";
+                showHint("🎭 공연 장르 키워드 자동 분석 완료!");
+            }
+        } catch (e) { console.error(e); }
+    });
+
+    function showHint(msg) {
+        const hint = document.getElementById('auto-fill-msg');
+        hint.innerText = msg; hint.style.display = 'block'; setTimeout(() => hint.style.display = 'none', 3000);
+    }
+
+    // --- 3. 소감 보관함(Archive) 로직 ---
+    function openArchive() {
+        const modal = document.getElementById('archive-modal');
+        const content = document.getElementById('archive-content');
+        const body = document.getElementById('archive-body');
+        
+        // 소감이 존재하는 리뷰만 필터링 (최신순 정렬)
+        const commentsOnly = reviews.filter(r => r.comment && r.comment.trim() !== '').reverse();
+        
+        if(commentsOnly.length === 0) {
+            body.innerHTML = `<div class="empty-msg">아직 기록된 소감이 없습니다.<br>당신의 우주에 이야기를 남겨주세요.</div>`;
+        } else {
+            body.innerHTML = commentsOnly.map(r => `
+                <div class="review-card">
+                    <div class="review-meta">
+                        <h3 class="review-title">${r.title} <span style="font-size:0.8rem; color:#aaa; font-weight:normal;">(${r.category})</span></h3>
+                        <div class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+                    </div>
+                    <div class="review-comment">"${r.comment}"</div>
+                </div>
+            `).join('');
+        }
+        
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+        }, 10);
+    }
+
+    function closeArchive() {
+        const modal = document.getElementById('archive-modal');
+        const content = document.getElementById('archive-content');
+        modal.style.opacity = '0';
+        content.style.transform = 'translateY(20px)';
+        setTimeout(() => modal.style.display = 'none', 300);
+    }
+
+    // --- 4. D3.js 시각화 및 알고리즘 엔진 ---
+    const container = document.getElementById("graph-container");
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
+
+    const svg = d3.select("#graph-container").append("svg").attr("width", width).attr("height", height);
+    const g = svg.append("g");
+    svg.call(d3.zoom().scaleExtent([0.2, 4]).on("zoom", (event) => g.attr("transform", event.transform)));
+
+    let defs = svg.append("defs");
+    const simulation = d3.forceSimulation()
+        .force("link", d3.forceLink().id(d => d.id).distance(150).strength(0.6))
+        .force("charge", d3.forceManyBody().strength(-600))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide().radius(d => d.r + 15).iterations(2));
+
+    const linkGroup = g.append("g").attr("class", "links");
+    const nodeGroup = g.append("g").attr("class", "nodes");
+    let linkElements = linkGroup.selectAll(".link");
+    let nodeElements = nodeGroup.selectAll(".node");
+    const tooltip = d3.select("#tooltip");
+
+    function renderGraph() {
+        localStorage.setItem('cu_reviews_v5', JSON.stringify(reviews));
+        localStorage.setItem('cu_nodes_v5', JSON.stringify(graphNodes));
+        const linksToSave = graphLinks.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
+        localStorage.setItem('cu_links_v5', JSON.stringify(linksToSave));
+        
+        document.getElementById('stat-works').innerText = reviews.length;
+        document.getElementById('stat-keywords').innerText = keywordSet.size;
+
+        if (reviews.length > 0) {
+            document.getElementById('rec-panel').style.display = 'block';
+
+            let kwScores = {};
+            reviews.forEach(r => {
+                let weight = 0;
+                if (r.rating === 5) weight = 3.0;
+                else if (r.rating === 4) weight = 1.5;
+                else if (r.rating === 3) weight = 0.2;
+                else if (r.rating === 2) weight = -1.0;
+                else if (r.rating === 1) weight = -2.0;
+
+                r.originalKeywords.forEach(k => { kwScores[k] = (kwScores[k] || 0) + weight; });
+            });
+
+            const sortedKeywords = Object.keys(kwScores).sort((a,b) => kwScores[b] - kwScores[a]);
+            const top1 = sortedKeywords[0];
+            const top2 = sortedKeywords.length > 1 ? sortedKeywords[1] : null;
+
+            let reasonText = `유저님의 평점 가중치를 수학적으로 연산한 결과, 당신의 우주는 <span class="highlight">#${top1}</span> 궤도를 강력하게 돌고 있습니다.`;
+            if(top2) reasonText += `<br>특히 <span class="highlight">#${top2}</span> 감각이 교차할 때 가장 깊은 몰입도(고별점)를 보였습니다.`;
+            document.getElementById('rec-reason').innerHTML = reasonText;
+
+            const unreviewed = masterRecDB.filter(dbItem => !reviews.some(r => r.title === dbItem.title));
+            if(unreviewed.length > 0) {
+                unreviewed.forEach(item => {
+                    item.score = 0;
+                    item.matchedTags = [];
+                    item.tags.forEach(tag => { 
+                        if(kwScores[tag] > 0) {
+                            item.score += kwScores[tag]; 
+                            item.matchedTags.push(tag);
+                        }
+                    });
+                });
+                unreviewed.sort((a,b) => b.score - a.score);
+                const bestRec = unreviewed[0];
+
+                if(bestRec.score > 0) {
+                    document.getElementById('rec-work-container').style.display = 'block';
+                    document.getElementById('rec-img').src = bestRec.img;
+                    document.getElementById('rec-title').innerText = `${bestRec.title} (${bestRec.cat})`;
+                    document.getElementById('rec-tags').innerText = bestRec.tags.map(t=>`#${t}`).join(' ');
+
+                    // 제휴 링크 바인딩
+                    const affBtn = document.getElementById('rec-affiliate-btn');
+                    affBtn.href = bestRec.link;
+                    affBtn.innerText = bestRec.linkText;
+
+                    const reference = reviews.find(r => r.rating >= 4 && r.originalKeywords.some(k => bestRec.matchedTags.includes(k)));
+                    
+                    let dynamicDesc = `<strong>추천 알고리즘 도출:</strong><br>`;
+                    if(reference) {
+                        dynamicDesc += `유저님이 ${reference.rating}점을 주셨던 <span style="color:var(--secondary)">[${reference.title}]</span>의 핵심 텍스처를 완전히 공유하는 작품입니다. `;
+                    }
+                    dynamicDesc += `강력한 선호도를 보이신 <strong>#${bestRec.matchedTags.slice(0,2).join(', #')}</strong> 코드가 완벽하게 교차하고 있습니다.<br><br>`;
+                    dynamicDesc += `<strong>작품 해설:</strong> ${bestRec.desc}`;
+                    
+                    document.getElementById('rec-desc').innerHTML = dynamicDesc;
+                }
+            }
+
+            let adMatched = adDatabase['default'];
+            for(let key in adDatabase) {
+                if(top1.includes(key) || (top2 && top2.includes(key))) { adMatched = adDatabase[key]; break; }
+            }
+            document.getElementById('ad-title').innerText = adMatched.title;
+            document.getElementById('ad-desc').innerText = adMatched.desc;
+        }
+
+        const patterns = defs.selectAll("pattern").data(graphNodes.filter(d => d.poster), d => d.id);
+        patterns.enter().append("pattern").attr("id", d => "bg-" + d.id).attr("width", 1).attr("height", 1)
+            .attr("patternContentUnits", "objectBoundingBox")
+            .append("image").attr("href", d => d.poster).attr("width", 1).attr("height", 1).attr("preserveAspectRatio", "xMidYMid slice");
+
+        linkElements = linkGroup.selectAll(".link").data(graphLinks, d => (d.source.id || d.source) + "-" + (d.target.id || d.target));
+        linkElements.exit().remove();
+        linkElements = linkElements.enter().append("line").attr("class", "link").merge(linkElements);
+
+        nodeElements = nodeGroup.selectAll(".node").data(graphNodes, d => d.id);
+        nodeElements.exit().remove();
+        
+        const nodeEnter = nodeElements.enter().append("g").attr("class", "node")
+            .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
+            .on("mouseover", handleMouseOver).on("mouseout", handleMouseOut).on("mousemove", handleMouseMove)
+            .on("touchstart", (e, d) => { e.preventDefault(); handleMouseOver(e.touches[0], d); })
+            .on("touchend", handleMouseOut);
+
+        nodeEnter.append("circle").attr("r", d => d.r).attr("fill", d => d.poster ? `url(#bg-${d.id})` : d.color);
+        nodeEnter.append("text").attr("class", "node-icon").text(d => d.poster ? "" : d.icon);
+        nodeEnter.append("text").attr("class", "node-label").attr("y", d => d.r + 18).attr("text-anchor", "middle").text(d => d.label);
+
+        nodeElements = nodeEnter.merge(nodeElements);
+        simulation.nodes(graphNodes).on("tick", ticked);
+        simulation.force("link").links(graphLinks);
+        simulation.alpha(1).restart();
+    }
+
+    function ticked() {
+        linkElements.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+        nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
+    }
+
+    // --- 5. 툴팁 상호작용 ---
+    function handleMouseOver(event, d) {
+        const connectedIds = new Set([d.id]);
+        graphLinks.forEach(l => {
+            if (l.source.id === d.id) connectedIds.add(l.target.id || l.target);
+            if (l.target.id === d.id) connectedIds.add(l.source.id || l.source);
+        });
+
+        nodeElements.style("opacity", o => connectedIds.has(o.id) ? 1 : 0.1);
+        linkElements.style("stroke-opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 0.8 : 0.05);
+
+        tooltip.style("opacity", 1);
+        let html = `<div class="tt-title">${d.label}</div>`;
+        if(d.type === 'item') {
+            const rev = reviews.find(r => r.id === d.id);
+            if(rev) {
+                if(rev.poster) html += `<img src="${rev.poster}">`;
+                html += `<div class="tt-meta">${rev.category} | ⭐ ${rev.rating}점</div>`;
+                if(rev.comment) html += `<div class="tt-comment">"${rev.comment}"</div>`;
+            }
+        } else {
+            html += `<div class="tt-meta">평점 기반 동적 가중치 연산됨</div>`;
+        }
+        tooltip.html(html);
+        let pageX = event.pageX || event.clientX; let pageY = event.pageY || event.clientY;
+        tooltip.style("left", pageX + "px").style("top", pageY + "px");
+    }
+    
+    function handleMouseMove(event) { 
+        let pageX = event.pageX || event.clientX; let pageY = event.pageY || event.clientY;
+        tooltip.style("left", pageX + "px").style("top", pageY + "px"); 
+    }
+    function handleMouseOut() { nodeElements.style("opacity", 1); linkElements.style("stroke-opacity", 0.2); tooltip.style("opacity", 0); }
+    function dragstarted(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+    function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+    function dragended(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+    // --- 6. 폼 제출 ---
+    document.getElementById('review-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const rawKeywords = keywordsInput.value.split(',').map(k => k.trim().replace(/^#/, '')).filter(k => k);
+        const review = {
+            id: "R_" + Date.now(), 
+            title: titleInput.value.trim(), 
+            category: categoryInput.value,
+            originalKeywords: rawKeywords, 
+            rating: parseInt(document.querySelector('input[name="rating"]:checked').value),
+            comment: commentInput.value.trim(),
+            poster: currentItemPoster 
+        };
+        reviews.push(review);
+        
+        const radius = 25 + (review.rating * 4); 
+        graphNodes.push({ id: review.id, label: review.title, type: 'item', color: colors[review.category], r: radius, icon: '', poster: review.poster });
+
+        rawKeywords.forEach(kw => {
+            const normalized = kw.toLowerCase().replace(/\s+/g, '');
+            const kid = "K_" + normalized;
+            
+            if (!keywordSet.has(kid)) {
+                keywordSet.add(kid);
+                let kwIcon = '🏷️';
+                if(kw.includes('년대') || kw.includes('년') || kw.match(/^[0-9]+$/)) kwIcon = '⏳';
+                else if(Object.values(tmdbGenres).includes(kw) || kw.includes('음악') || kw.includes('문학')) kwIcon = '🎭';
+                else if(kw.match(/^[a-zA-Z가-힣]+$/)) kwIcon = '✨';
+
+                graphNodes.push({ id: kid, label: kw, type: 'keyword', color: colors['키워드'], r: 16, icon: kwIcon, poster: null });
+            }
+            graphLinks.push({ source: review.id, target: kid });
+        });
+
+        this.reset();
+        document.querySelector('input[id="star3"]').checked = true; 
+        currentItemPoster = null; 
+        renderGraph();
+    });
+
+    function clearUniverse() { 
+        if(confirm("모든 별자리를 지우고 빅뱅 이전으로 돌아가시겠습니까?")) { 
+            localStorage.removeItem('cu_reviews_v5');
+            localStorage.removeItem('cu_nodes_v5');
+            localStorage.removeItem('cu_links_v5');
+            location.reload(); 
+        } 
+    }
+
+    renderGraph();
+    window.addEventListener('resize', () => {
+        svg.attr("width", container.clientWidth).attr("height", container.clientHeight);
+        simulation.force("center", d3.forceCenter(container.clientWidth / 2, container.clientHeight / 2));
+        simulation.alpha(0.3).restart();
+    });
+</script>
+</body>
+</html>
